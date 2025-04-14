@@ -1,24 +1,43 @@
-import { create } from 'zustand';
-import { authService } from '../services/api';
+import { create } from "zustand";
+
 
 interface Employee {
-  id: string;
-  did: string;
-  name: string;
-  role: string;
-  permissions: string[];
-  connectionId: string;
+  employeeNumber: string | null;
+  full_name: string | null;
+  email: string | null;
+  address: string | null;
+  status: string | null;
+  dateOfIssue: string | null;
+  dateOfJoining: string | null;
+  branch_name: string | null;
+  designation: string | null;
+  branchCode: string | null;
+  connectionId: string | null;
+  proverDid: string | null;
+  createdAt: string | null;
 }
+
+interface ConnectionResponseState {
+  connectionResponse: any;
+  setConnectionResponse: (response: any) => void;
+}
+
+export const useConnectionResponse = create<ConnectionResponseState>((set) => ({
+  connectionResponse: null,
+  setConnectionResponse: (response) => set({ connectionResponse: response }),
+}));
+
 
 interface AuthState {
   isAuthenticated: boolean;
   employee: Employee | null;
   isLoading: boolean;
   error: string | null;
-  connectionInvitation: any | null;
-  login: (connectionId: string) => Promise<void>;
+  connection: any | null;
+  setEmployee: (employee: Employee) => void;
+  clearEmployee: () => void;
+  setConnection: (connection: any) => void;
   logout: () => void;
-  createInvitation: () => Promise<void>;
   clearError: () => void;
 }
 
@@ -27,38 +46,20 @@ export const useAuthStore = create<AuthState>((set) => ({
   employee: null,
   isLoading: false,
   error: null,
-  connectionInvitation: null,
+  connection: null,
 
-  createInvitation: async () => {
-    try {
-      set({ isLoading: true, error: null });
-      const invitation = await authService.createInvitation();
-      set({ connectionInvitation: invitation });
-    } catch (error) {
-      console.error(error);
-      set({ error: 'Failed to create connection invitation' });
-    } finally {
-      set({ isLoading: false });
-    }
-  },
+  setEmployee: (employee) =>
+    set({ isAuthenticated: true, employee }),
 
-  login: async (connectionId: string) => {
-    try {
-      set({ isLoading: true, error: null });
-      const { employee, token } = await authService.login(connectionId);
-      localStorage.setItem('auth_token', token);
-      set({ isAuthenticated: true, employee });
-    } catch (error) {
-      set({ error: 'Authentication failed' });
-    } finally {
-      set({ isLoading: false });
-    }
-  },
+  clearEmployee: () =>
+    set({ isAuthenticated: false, employee: null }),
 
-  logout: () => {
-    localStorage.removeItem('auth_token');
-    set({ isAuthenticated: false, employee: null });
-  },
+  setConnection: (connection) =>
+    set({ connection }),
 
-  clearError: () => set({ error: null }),
+  logout: () =>
+    set({ isAuthenticated: false, employee: null, connection: null }),
+
+  clearError: () =>
+    set({ error: null }),
 }));

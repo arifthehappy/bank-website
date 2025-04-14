@@ -1,44 +1,32 @@
-
-// import routes
-const authRoutes = require("./routes/auth");
-// const webhookListener = require("./webhookListener");
-
-// create server
 const express = require("express");
+const mongoose = require("mongoose");
+const cors = require("cors");
+const authRoutes = require("./routes/auth");
+
 const app = express();
 app.use(express.json());
-const cors = require("cors");
 app.use(cors()); // Enable CORS for all routes
 app.use(express.urlencoded({ extended: true }));
+
 const port = process.env.PORT || 3001;
 
 
-const { MongoClient, ServerApiVersion } = require('mongodb');
-const uri = "mongodb+srv://arifthehappy:hiLIQF6g7CLXJH58@cluster0.9v651.mongodb.net/?appName=Cluster0";
+// const { MongoClient, ServerApiVersion } = require('mongodb');
+const mongoURI = process.env.MONGO_URI || "mongodb+srv://arifthehappy:hiLIQF6g7CLXJH58@cluster0.5k9fpm9.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
 
-// Create a MongoClient with a MongoClientOptions object to set the Stable API version
-const client = new MongoClient(uri, {
-  serverApi: {
-    version: ServerApiVersion.v1,
-    strict: true,
-    deprecationErrors: true,
-  }
-});
-
-async function run() {
-  try {
-    // Connect the client to the server	(optional starting in v4.7)
-    await client.connect();
-    // Send a ping to confirm a successful connection
-    await client.db("admin").command({ ping: 1 });
-    console.log("Pinged your deployment. You successfully connected to MongoDB!");
-  } finally {
-    // Ensures that the client will close when you finish/error
-    await client.close();
-  }
+//connect to client using mongoose
+mongoose.connect(mongoURI,{
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
+  serverSelectionTimeoutMS: 10000
+})
+.then(() => {
+  console.log("MongoDB connected successfully");
 }
-run().catch(console.dir);
-
+).catch((err) => {
+  console.error("MongoDB connection error:", err);
+}
+);
 
 // basic route
 app.get("/", (req, res) => {

@@ -1,61 +1,163 @@
 import React, { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Copy, QrCode } from "lucide-react";
+import { Copy, LogIn, QrCode, User, UserPlus } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
-import { useAuthStore } from "../store/auth";
+import { connectWithWallet } from "../services/api";
+import { useConnectionResponse } from "../store/auth";
+import { AGENT_Listener_URL } from "../config/constants";
+import { create } from "zustand";
 
-export default function Login() {
+export default function Home() {
   const navigate = useNavigate();
-  const {
-    isAuthenticated,
-    isLoading,
-    error,
-    connectionInvitation,
-    createInvitation,
-    clearError,
-  } = useAuthStore();
 
-  useEffect(() => {
-    if (isAuthenticated) {
-      navigate("/");
+  const [connectionInvitation, setConnectionInvitation] = React.useState<{
+    isLoading: boolean;
+    error: string | null;
+    connectionInvitation?: any;
+  }>({ isLoading: false, error: null });
+
+  const createInvitation = async () => {
+    try {
+      setActiveConnection(null);
+      sessionStorage.removeItem("activeConnection");
+      // Clear any previous invitations and create a new one
+      setConnectionInvitation({ isLoading: true, error: null });
+      const invitation = await connectWithWallet();
+      setConnectionInvitation({
+        isLoading: false,
+        error: null,
+        connectionInvitation: invitation,
+      });
+    } catch (error) {
+      console.error(error);
+      setConnectionInvitation({
+        isLoading: false,
+        error: "Failed to create connection invitation",
+      });
     }
-  }, [isAuthenticated, navigate]);
-
-  useEffect(() => {
-    // Clear any previous invitations and create a new one
-    createInvitation();
-    return () => clearError();
-  }, []);
+  };
 
   console.log("Connection Invitation:", connectionInvitation);
+  console.log(
+    "connection response get state",
+    useConnectionResponse.getState().connectionResponse
+  );
+
+  const [activeConnection, setActiveConnection] = React.useState<any>(() => {
+    const storedData = sessionStorage.getItem("activeConnection");
+    return storedData ? JSON.parse(storedData) : null;
+  });
+
+  console.log("activeConnection", activeConnection);
+
+  // if connectionInvitation  is generated waiting for user to response then send to login page
+  useEffect(() => {
+    if (
+      connectionInvitation.connectionInvitation &&
+      !connectionInvitation.isLoading
+    ) {
+      const invi_msg_id = connectionInvitation.connectionInvitation.invi_msg_id;
+
+      let connectionResponse: EventSource | null = null;
+
+      let retries = 0;
+      const maxRetries = 60;
+      let responseReceived = false;
+
+      const createConnectionResponse = async () => {
+        if (responseReceived === true || retries > maxRetries) {
+          connectionResponse?.close();
+          console.log("Response already received or max retries reached");
+          return;
+        }
+
+        try {
+          connectionResponse = new EventSource(
+            `${AGENT_Listener_URL}/events/connections/${invi_msg_id}`
+          );
+
+          connectionResponse.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            console.log("Connection Response:", data);
+
+            useConnectionResponse.getState().setConnectionResponse(data);
+            sessionStorage.setItem("activeConnection", JSON.stringify(data));
+            responseReceived = true;
+            connectionResponse?.close();
+            // Redirect to login page with connectionId
+            console.log("Event received; stopping retries");
+
+            navigate("/login", {
+              state: {
+                connectionId: data.connection_id,
+              },
+            });
+          };
+
+          connectionResponse.onerror = (error) => {
+            console.error("Error in connection response:", error, retries);
+            connectionResponse?.close();
+
+            if (!responseReceived && retries < maxRetries) {
+              console.log("Retrying connection response...", retries);
+              retries++;
+              setTimeout(createConnectionResponse, 2000);
+            }
+          };
+        } catch (error) {
+          console.error("Error creating connection response:", error);
+          if (connectionResponse) {
+            connectionResponse.close();
+          }
+        }
+      };
+
+      //invoke initial attempt
+      createConnectionResponse();
+
+      return () => {
+        if (connectionResponse) {
+          connectionResponse.close();
+        }
+      };
+    }
+  }, [
+    connectionInvitation.connectionInvitation,
+    connectionInvitation.isLoading,
+    navigate,
+  ]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-600 to-blue-800 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-md">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Bank Portal</h1>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">
+            Banking Portal
+          </h1>
           <p className="text-gray-600">
             Connect with your SSI wallet to continue
           </p>
         </div>
 
-        {error && (
+        {connectionInvitation.error && (
           <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-600">
-            {error}
+            {connectionInvitation.error}
           </div>
         )}
 
         <div className="space-y-4">
-          {isLoading ? (
+          {connectionInvitation.isLoading ? (
             <div className="text-center py-8">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
               <p className="mt-2 text-gray-600">Generating connection...</p>
             </div>
-          ) : connectionInvitation ? (
+          ) : connectionInvitation.connectionInvitation ? (
             <div className="space-y-4">
               <div className="flex justify-center">
                 <QRCodeSVG
-                  value={JSON.stringify(connectionInvitation)}
+                  value={JSON.stringify(
+                    connectionInvitation.connectionInvitation
+                  )}
                   size={256}
                   level="H"
                   includeMargin
@@ -68,7 +170,7 @@ export default function Login() {
                   readOnly
                   className="w-full h-full p-2 mt-2 border rounded-lg overflow-auto "
                   value={JSON.stringify(
-                    connectionInvitation.invitation,
+                    connectionInvitation.connectionInvitation.invitation,
                     null,
                     2
                   )}
@@ -77,7 +179,11 @@ export default function Login() {
                   onClick={() =>
                     navigator.clipboard
                       .writeText(
-                        JSON.stringify(connectionInvitation.invitation, null, 2)
+                        JSON.stringify(
+                          connectionInvitation.connectionInvitation.invitation,
+                          null,
+                          2
+                        )
                       )
                       .then(() => {
                         alert("Invitation copied to clipboard!");
@@ -99,10 +205,73 @@ export default function Login() {
               className="w-full flex items-center justify-center gap-2 bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700 transition-colors"
             >
               <QrCode size={20} />
-              <span>Generate Connection QR</span>
+              <span>Generate New Connection QR</span>
             </button>
           )}
         </div>
+
+        {/* active connections */}
+        {activeConnection && (
+          <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg text-green-600">
+            <p>
+              Active connection: {activeConnection.connection_id} -{" "}
+              {activeConnection.state}
+            </p>
+            {/* login and register buttons */}
+            <p className="text-sm text-gray-600">
+              Click to login or register with this connection
+            </p>
+            <div className="flex items-center justify-center mt-2 gap-2 ">
+              <button
+                onClick={() => {
+                  navigate("/login", {
+                    state: {
+                      connectionId: activeConnection.connection_id,
+                    },
+                  });
+                }}
+                className="mt-2 w-full flex items-center justify-center gap-2 bg-blue-500 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                <LogIn className="h-4 w-4" />
+                Login
+              </button>
+              <button
+                onClick={() => {
+                  navigate("/register", {
+                    state: {
+                      connectionId: activeConnection.connection_id,
+                    },
+                  });
+                }}
+                className="mt-2 w-full flex items-center justify-center gap-2 bg-green-500 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                <UserPlus className="h-4 w-4" />
+                Get your ID
+              </button>
+            </div>
+
+            {/* connection details */}
+            <details className="text-sm text-600">
+              <summary className="cursor-pointer">
+                Click to view connection details
+              </summary>
+              <pre className="whitespace-pre-wrap overflow-auto">
+                {JSON.stringify(activeConnection, null, 2)}
+              </pre>
+            </details>
+
+            <button
+              onClick={() => {
+                sessionStorage.removeItem("activeConnection");
+                setActiveConnection(null);
+              }}
+              className="mt-2 w-full flex items-center justify-center gap-2 bg-red-400 text-white py-2 px-4 rounded-lg hover:bg-red-700 transition-colors"
+            >
+              <Copy className="h-4 w-4" />
+              Clear Active Connection
+            </button>
+          </div>
+        )}
 
         <div className="mt-8 pt-6 border-t text-center">
           <p className="text-sm text-gray-500">

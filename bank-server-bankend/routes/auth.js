@@ -29,21 +29,121 @@ router.get("/connect", async (req, res) => {
   }
 });
 
+// Register a new employee in the database after issuing a credential
+// This endpoint is called by the webhook listener when a new employee is registered
+// and the credential is issued
+router.post("/register", async (req, res) => {
+  const data = req.body;
+
+  const connection_id = data.connection_id;
+  const prover_did = data.by_format.cred_request.indy.prover_did
+  const full_name = data.by_format.cred_issue.indy.values.full_name.raw;
+  const address = data.by_format.cred_issue.indy.values.address.raw;
+  const blood_group = data.by_format.cred_issue.indy.values.blood_group.raw;
+  const dob = data.by_format.cred_issue.indy.values.dob.raw;
+  const email = data.by_format.cred_issue.indy.values.email.raw;
+  const employee_number = data.by_format.cred_issue.indy.values.employee_number.raw;
+  const date_of_issue = data.by_format.cred_issue.indy.values.date_of_issue.raw;
+  const date_of_joining = data.by_format.cred_issue.indy.values.date_of_joining.raw;
+  const branch_name = data.by_format.cred_issue.indy.values.branch_name.raw;
+  const designation = data.by_format.cred_issue.indy.values.designation.raw;
+  const branch_code = data.by_format.cred_issue.indy.values.branch_code.raw;
+
+  try {
+    // // Check if the employee already exists
+    // const existingEmployee = await Employee.find
+    //     ({ email });
+    // if (existingEmployee) {
+    //   return res.status(400).json({ error: "Employee already exists" });
+    // }
+
+    // Create a new employee record in the database
+    const newEmployee = new Employee({
+      connection_id,
+      prover_did,
+      full_name,
+      address,
+      blood_group,
+      dob,
+      email,
+      employee_number,
+      date_of_issue,
+      date_of_joining,
+      branch_name,
+      designation,
+      branch_code,
+      status: "active"
+    });
+
+    await newEmployee.save();
+    console.log("Employee registered:", newEmployee);
+    res.status(201).json({ message: "Employee registered successfully" });
+  } catch (error) {
+    console.error("Error registering employee:", error);
+    res.status(500).json({ errormessage: "Error registering employee", details: error });
+  }
+});
+
 // Login using DID
 router.post("/login", async (req, res) => {
+  // Check if the request body contains the required fields
+  if (!req.body || !req.body.did) {
+    console.error("Login request missing DID");
+    return res.status(400).json({ error: "DID is required" });
+  }
+  console.log("Login request received:", req.body);
+  // Extract the DID from the request body
   const { did } = req.body;
-  const employee = await Employee.findOne({ did });
+  const employee = await Employee.findOne({ prover_did:did });
 
   if (!employee) return res.status(404).json({ error: "User not found" });
 
+  // Check if the employee is active
+  if (employee.status === "inactive") {
+    return res.status(403).json({ error: "User is inactive" });
+  }
   // Request Employee VC Proof
   const proofRequest = {
+    auto_verify: true,
+    comment: "Requesting Employee VC Proof",
     connection_id: employee.connection_id,
     presentation_request: {
       indy: {
         name: "Employee Verification",
         requested_attributes: {
-          "0_employee_number": { name: "employee_number" }
+          "additionalProp1": { 
+            name: "employee_number" 
+          },
+          "additionalProp2": { 
+            name: "email" 
+          },
+          "additionalProp3": { 
+            name: "full_name" 
+          },
+          "additionalProp4": { 
+            name: "dob" 
+          },
+          "additionalProp5": { 
+            name: "address" 
+          },
+          "additionalProp6": { 
+            name: "blood_group" 
+          },
+          "additionalProp7": { 
+            name: "date_of_issue" 
+          },
+          "additionalProp8": { 
+            name: "date_of_joining" 
+          },
+          "additionalProp9": { 
+            name: "branch_name" 
+          },
+          "additionalProp10": { 
+            name: "designation" 
+          },
+          "additionalProp11": { 
+            name: "branch_code" 
+          }
         },
         requested_predicates: {},
         version: "1.0",
@@ -52,11 +152,36 @@ router.post("/login", async (req, res) => {
     }
   };
 
+  console.log("Proof request:", proofRequest);
+
   try {
-    await axios.post("http://localhost:7001/present-proof-2.0/send-request", proofRequest);
-    res.json({ message: "Proof request sent. Please verify in your wallet." });
+    const response =   await axios.post("https://w80khfvj-7001.inc1.devtunnels.ms/present-proof-2.0/send-request", proofRequest);
+    console.log("Proof request sent; response:", response.data);
+    // Handle the response as needed
+    res.status(200).json({ message: "Proof request sent. Please verify in your wallet." });
   } catch (error) {
-    res.status(500).json({ error: "Failed to send proof request" });
+    console.error("Error sending proof request:", error);
+    res.status(500).json({ error, message: "Failed to send proof request" });
+  }
+});
+
+// Get a employee by connection_id
+// Fetch user details by connection_id
+router.get("/user-details/:connection_id", async (req, res) => {
+  const { connection_id } = req.params;
+
+  try {
+    // Find the employee by connection_id
+    const employee = await Employee.findOne({ connection_id });
+
+    if (!employee) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    res.status(200).json(employee);
+  } catch (error) {
+    console.error("Error fetching user details:", error);
+    res.status(500).json({ error: "Failed to fetch user details" });
   }
 });
 

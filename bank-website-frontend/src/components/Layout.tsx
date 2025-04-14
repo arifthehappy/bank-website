@@ -1,6 +1,14 @@
 import React from "react";
-import { useNavigate } from "react-router-dom";
-import { Building2, Users, Shield, LogOut, ChevronDown } from "lucide-react";
+import { useNavigate, Link } from "react-router-dom";
+import {
+  Building2,
+  Users,
+  Shield,
+  LogOut,
+  ChevronDown,
+  Briefcase,
+  DollarSign,
+} from "lucide-react";
 import { useAuthStore } from "../store/auth";
 
 export default function Layout({ children }: { children: React.ReactNode }) {
@@ -12,6 +20,63 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     navigate("/login");
   };
 
+  // Define the available pages and their required permissions
+  const pages = [
+    {
+      name: "All Employees",
+      path: "/employees",
+      icon: <Users className="mr-3 h-5 w-5" />,
+      permission: "view_employees",
+    },
+    {
+      name: "Loans",
+      path: "/loans",
+      icon: <DollarSign className="mr-3 h-5 w-5" />,
+      permission: "manage_loans",
+    },
+    {
+      name: "Accounts",
+      path: "/accounts",
+      icon: <Building2 className="mr-3 h-5 w-5" />,
+      permission: "manage_accounts",
+    },
+    {
+      name: "Transactions",
+      path: "/transactions",
+      icon: <DollarSign className="mr-3 h-5 w-5" />,
+      permission: "view_transactions",
+    },
+    {
+      name: "Customer Support",
+      path: "/customer-support",
+      icon: <Shield className="mr-3 h-5 w-5" />,
+      permission: "assist_customers",
+    },
+    {
+      name: "Loan Applications",
+      path: "/loan-applications",
+      icon: <Briefcase className="mr-3 h-5 w-5" />,
+      permission: "process_loans",
+    },
+    {
+      name: "Branch Management",
+      path: "/branch-management",
+      icon: <Building2 className="mr-3 h-5 w-5" />,
+      permission: "manage_branches",
+    },
+    {
+      name: "Reports",
+      path: "/reports",
+      icon: <Shield className="mr-3 h-5 w-5" />,
+      permission: "view_reports",
+    },
+  ];
+
+  // Filter pages based on the user's permissions
+  const accessiblePages = pages.filter((page) =>
+    employee?.permissions?.includes(page.permission)
+  );
+
   return (
     <div className="min-h-screen bg-gray-50">
       <nav className="bg-white border-b">
@@ -21,7 +86,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               <div className="flex-shrink-0 flex items-center">
                 <Building2 className="h-8 w-8 text-blue-600" />
                 <span className="ml-2 text-xl font-bold text-gray-900">
-                  Bank Portal
+                  Banking Portal
                 </span>
               </div>
             </div>
@@ -29,7 +94,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             <div className="flex items-center">
               <div className="relative">
                 <button className="flex items-center space-x-2 text-gray-700 hover:text-gray-900">
-                  <span>{employee?.name}</span>
+                  <span>{employee?.full_name || "User"}</span>
                   <ChevronDown size={16} />
                 </button>
               </div>
@@ -47,20 +112,16 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       <div className="flex">
         <aside className="w-64 bg-white border-r min-h-screen p-4">
           <nav className="space-y-1">
-            <a
-              href="#"
-              className="flex items-center px-4 py-2 text-gray-700 hover:bg-gray-50 rounded-lg"
-            >
-              <Users className="mr-3 h-5 w-5" />
-              Employees
-            </a>
-            <a
-              href="#"
-              className="flex items-center px-4 py-2 text-gray-700 hover:bg-gray-50 rounded-lg"
-            >
-              <Shield className="mr-3 h-5 w-5" />
-              Permissions
-            </a>
+            {pages.map((page) => (
+              <Link
+                key={page.name}
+                to={page.path}
+                className="flex items-center px-4 py-2 text-gray-700 hover:bg-gray-50 rounded-lg"
+              >
+                {page.icon}
+                {page.name}
+              </Link>
+            ))}
           </nav>
         </aside>
 

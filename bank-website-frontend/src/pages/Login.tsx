@@ -1,108 +1,82 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
+import axios from "axios";
+import { loginWithDid } from "../services/api";
 import { useNavigate } from "react-router-dom";
-import { Copy, QrCode } from "lucide-react";
-import { QRCodeSVG } from "qrcode.react";
 import { useAuthStore } from "../store/auth";
 
 export default function Login() {
+  const [activeConnection, setActiveConnection] = useState<any>(null);
   const navigate = useNavigate();
-  const {
-    isAuthenticated,
-    isLoading,
-    error,
-    connectionInvitation,
-    createInvitation,
-    clearError,
-  } = useAuthStore();
+  const [disabled, setDisabled] = useState(false);
+  const { setEmployee } = useAuthStore();
 
   useEffect(() => {
-    if (isAuthenticated) {
-      navigate("/");
-    }
-  }, [isAuthenticated, navigate]);
-
-  useEffect(() => {
-    // Clear any previous invitations and create a new one
-    createInvitation();
-    return () => clearError();
+    // Retrieve any stored connection from sessionStorage
+    const storedData = sessionStorage.getItem("activeConnection");
+    setActiveConnection(storedData ? JSON.parse(storedData) : null);
   }, []);
 
-  console.log("Connection Invitation:", connectionInvitation);
+  const handleLogin = async () => {
+    if (!activeConnection) {
+      alert("No active connection found.");
+      return;
+    }
+    try {
+      // login with the active connection did and navigate to dashboard for session token
+      // alert("Proof request sent. Please verify in your wallet.");
+      setDisabled(true);
+      // Send the proof request to the wallet
+      const response = await loginWithDid(
+        activeConnection.their_did,
+        activeConnection.connection_id
+      );
+      console.log("Login response:", response);
+      // alert(response.message);
+      if (response?.success) {
+        console.log("Login successful Now got to dashboard:", response);
+        setEmployee(response.userData);
+        navigate("/dashboard");
+      } else {
+        alert("Login failed. Please try again. from login.tsx");
+      }
+      setDisabled(false);
+    } catch (error) {
+      console.error(error);
+      alert("An error occurred. Please try again.");
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-600 to-blue-800 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-md">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Bank Portal</h1>
-          <p className="text-gray-600">
-            Connect with your SSI wallet to continue
-          </p>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">
+            Portal Login{" "}
+          </h1>
+          {/* <p className="text-gray-600">LOGIN</p> */}
         </div>
 
-        {error && (
-          <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-600">
-            {error}
-          </div>
-        )}
-
-        <div className="space-y-4">
-          {isLoading ? (
-            <div className="text-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-              <p className="mt-2 text-gray-600">Generating connection...</p>
-            </div>
-          ) : connectionInvitation ? (
-            <div className="space-y-4">
-              <div className="flex justify-center">
-                <QRCodeSVG
-                  value={JSON.stringify(connectionInvitation)}
-                  size={256}
-                  level="H"
-                  includeMargin
-                />
-              </div>
-
-              <div className="text-center">
-                <p className="text-gray-600">or copy this invitation</p>
-                <textarea
-                  readOnly
-                  className="w-full h-full p-2 mt-2 border rounded-lg overflow-auto "
-                  value={JSON.stringify(
-                    connectionInvitation.invitation,
-                    null,
-                    2
-                  )}
-                />
-                <button
-                  onClick={() =>
-                    navigator.clipboard
-                      .writeText(
-                        JSON.stringify(connectionInvitation.invitation, null, 2)
-                      )
-                      .then(() => {
-                        alert("Invitation copied to clipboard!");
-                      })
-                  }
-                  className="mt-2 w-full flex items-center justify-center gap-2 bg-gray-200 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-300 transition-colors"
-                >
-                  <Copy className="h-4 w-4" />
-                  Copy Invitation
-                </button>
-              </div>
-              <p className="text-sm text-center text-gray-600">
-                Scan this QR code with your SSI wallet to connect
-              </p>
-            </div>
-          ) : (
+        {activeConnection ? (
+          <div className="mt-4 p-4 bg-gray-100 rounded">
+            <h2 className="text-lg font-semibold text-gray-700 mb-2">
+              Active Connection
+            </h2>
+            <pre className="text-xs bg-white p-2 rounded shadow text-green-800 overflow-auto max-h-64">
+              {JSON.stringify(activeConnection, null, 2)}
+            </pre>
             <button
-              onClick={() => createInvitation()}
-              className="w-full flex items-center justify-center gap-2 bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700 transition-colors"
+              onClick={handleLogin}
+              disabled={disabled}
+              className="mt-4 bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <QrCode size={20} />
-              <span>Generate Connection QR</span>
+              Login with Active Connection
             </button>
-          )}
-        </div>
+          </div>
+        ) : (
+          <p className="text-gray-500 mt-8 text-center">
+            No active connection found.
+          </p>
+        )}
 
         <div className="mt-8 pt-6 border-t text-center">
           <p className="text-sm text-gray-500">
