@@ -35,6 +35,13 @@ router.get("/connect", async (req, res) => {
 router.post("/register", async (req, res) => {
   const data = req.body;
 
+  if(!data || !data.connection_id || !data.by_format || !data.by_format.cred_issue) {
+    console.error("Invalid data received for registration");
+    return res.status(400).json({ error: "Invalid data received" });
+  }
+  console.log("Registration request received:", data);
+  // Extract the required fields from the request body
+
   const connection_id = data.connection_id;
   const prover_did = data.by_format.cred_request.indy.prover_did
   const full_name = data.by_format.cred_issue.indy.values.full_name.raw;

@@ -127,6 +127,31 @@ export default function Home() {
     navigate,
   ]);
 
+  const [manualConnectionInput, setManualConnectionInput] =
+    React.useState<string>("");
+
+  const handleSetManualConnection = () => {
+    try {
+      const parsedConnection = JSON.parse(manualConnectionInput);
+      if (parsedConnection && parsedConnection.connection_id) {
+        sessionStorage.setItem(
+          "activeConnection",
+          JSON.stringify(parsedConnection)
+        );
+        setActiveConnection(parsedConnection);
+        alert("Active connection set successfully!");
+        setManualConnectionInput(""); // Clear the input field
+      } else {
+        alert(
+          "Invalid connection data. Please ensure the JSON contains a valid connection_id."
+        );
+      }
+    } catch (error) {
+      console.error("Error parsing connection JSON:", error);
+      alert("Invalid JSON format. Please check your input.");
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-600 to-blue-800 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-md">
@@ -272,6 +297,34 @@ export default function Home() {
             </button>
           </div>
         )}
+
+        {/* Manually Set Active Connection */}
+        <div className="mt-6">
+          <details className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+            <summary className="cursor-pointer text-sm font-medium text-gray-700">
+              Already have a connection? Manually set it here
+            </summary>
+            <div className="mt-4">
+              <p className="text-sm text-gray-600 mb-2">
+                Paste your connection JSON below to set it as the active
+                connection.
+              </p>
+              <textarea
+                className="w-full h-64 p-2 border rounded-lg mb-4 text-sm"
+                placeholder="Paste your connection JSON here"
+                onChange={(e) => setManualConnectionInput(e.target.value)}
+                value={manualConnectionInput}
+              />
+              <button
+                onClick={handleSetManualConnection}
+                className="w-full flex items-center justify-center gap-2 bg-blue-500 text-white py-2 px-4 rounded-lg hover:bg-blue-600 transition-colors text-sm"
+              >
+                <User className="h-4 w-4" />
+                Set Active Connection
+              </button>
+            </div>
+          </details>
+        </div>
 
         <div className="mt-8 pt-6 border-t text-center">
           <p className="text-sm text-gray-500">
