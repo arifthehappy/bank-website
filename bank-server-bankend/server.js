@@ -8,9 +8,9 @@ app.use(express.json());
 app.use(cors()); // Enable CORS for all routes
 app.use(express.urlencoded({ extended: true }));
 
-const port = process.env.PORT || 3001;
+const port = process.env.PORT || 3001
 
-
+ 
 // const { MongoClient, ServerApiVersion } = require('mongodb');
 const mongoURI = process.env.MONGO_URI || "mongodb+srv://arifthehappy:hiLIQF6g7CLXJH58@cluster0.5k9fpm9.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
 

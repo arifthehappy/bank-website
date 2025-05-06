@@ -31,7 +31,8 @@ export default function Register() {
           <strong>full_name, dob, blood_group, address, email</strong>
         </p>
         <p className="text-gray-700 mb-4">
-          Schema ID: <strong> VwJVVUv3Vqm8c8FhzTVeea:2:New Employee:1.0</strong>
+          Schema ID:{" "}
+          <strong> VwJVVUv3Vqm8c8FhzTVeea:2:employeeId:30.04.2025</strong>
         </p>
         <button
           onClick={() =>

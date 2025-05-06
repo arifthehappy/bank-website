@@ -61,6 +61,8 @@ export default function Login() {
             <h2 className="text-lg font-semibold text-gray-700 mb-2">
               Active Connection
             </h2>
+            please store the active connection with you in a safe place for
+            future
             <pre className="text-xs bg-white p-2 rounded shadow text-green-800 overflow-auto max-h-64">
               {JSON.stringify(activeConnection, null, 2)}
             </pre>
